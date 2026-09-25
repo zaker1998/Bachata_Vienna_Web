@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { HideOnAdmin } from "@/components/layout/hide-on-admin";
 import {
   CITY,
   COUNTRY,
@@ -98,7 +99,9 @@ export default function RootLayout({
         </a>
         <Navbar />
         <main id="main-content" className="flex-1">{children}</main>
-        <Footer />
+        <HideOnAdmin>
+          <Footer />
+        </HideOnAdmin>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

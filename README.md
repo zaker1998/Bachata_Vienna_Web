@@ -29,6 +29,7 @@ RESEND_API_KEY=...
 RESEND_FROM_EMAIL="Bachata Vienna <noreply@bachatavienna.at>" # verified Resend domain in prod
 INSTRUCTOR_EMAIL=you@example.com
 CONTACT_EMAIL=you@example.com   # optional — falls back to INSTRUCTOR_EMAIL
+REPLY_TO_EMAIL=you@example.com  # optional — Reply-To on guest emails, defaults to PUBLIC_CONTACT_EMAIL
 
 # Public site URL (used in sitemap, emails, OG metadata)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000

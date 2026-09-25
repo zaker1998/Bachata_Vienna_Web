@@ -13,12 +13,29 @@ const UpdateBookingStatusSchema = z.object({
   status: z.enum(["pending", "confirmed", "cancelled"]),
 });
 
-export async function updateBookingStatus(id: string, status: BookingRow["status"]) {
-  await assertAdmin();
+export type UpdateStatusResult =
+  | { ok: true; emailed: boolean }
+  | { ok: false; error: string };
+
+// Returns a result instead of throwing: in production Next.js replaces thrown
+// Server Action errors with a generic message, so the UI couldn't tell
+// "session expired" apart from "database down".
+export async function updateBookingStatus(
+  id: string,
+  status: BookingRow["status"]
+): Promise<UpdateStatusResult> {
+  try {
+    await assertAdmin();
+  } catch {
+    return {
+      ok: false,
+      error: "Your admin session expired. Reload the page and sign in again.",
+    };
+  }
 
   const parsed = UpdateBookingStatusSchema.safeParse({ id, status });
   if (!parsed.success) {
-    throw new Error("Invalid booking status update.");
+    return { ok: false, error: "Invalid booking status update." };
   }
 
   const supabase = createAdminClient();
@@ -30,12 +47,13 @@ export async function updateBookingStatus(id: string, status: BookingRow["status
     .single();
 
   if (fetchError || !existing) {
-    throw new Error(fetchError?.message ?? "Booking not found.");
+    console.error("Booking lookup failed:", fetchError);
+    return { ok: false, error: "Booking not found. It may have been deleted." };
   }
 
   const previousStatus = existing.status as BookingRow["status"];
   if (previousStatus === parsed.data.status) {
-    return;
+    return { ok: true, emailed: false };
   }
 
   const { error } = await supabase
@@ -43,7 +61,10 @@ export async function updateBookingStatus(id: string, status: BookingRow["status
     .update({ status: parsed.data.status })
     .eq("id", parsed.data.id);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Booking status update failed:", error);
+    return { ok: false, error: "Couldn't save status. Please try again." };
+  }
 
   revalidatePath("/admin/bookings");
 
@@ -59,5 +80,8 @@ export async function updateBookingStatus(id: string, status: BookingRow["status
         console.error(`Status-${nextStatus} email failed:`, err);
       }
     });
+    return { ok: true, emailed: true };
   }
+
+  return { ok: true, emailed: false };
 }
