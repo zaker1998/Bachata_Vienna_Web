@@ -26,10 +26,14 @@ ADMIN_PASSWORD=<min 8 chars>
 
 # Resend
 RESEND_API_KEY=...
-RESEND_FROM_EMAIL="Bachata Vienna <noreply@bachatavienna.at>" # verified Resend domain in prod
-INSTRUCTOR_EMAIL=you@example.com
+RESEND_FROM_EMAIL="Bachata Vienna <noreply@bachatavienna.com>" # must be a verified Resend domain in prod
+INSTRUCTOR_EMAIL=you@example.com  # new-booking alerts; defaults to PUBLIC_CONTACT_EMAIL
 CONTACT_EMAIL=you@example.com   # optional — falls back to INSTRUCTOR_EMAIL
 REPLY_TO_EMAIL=you@example.com  # optional — Reply-To on guest emails, defaults to PUBLIC_CONTACT_EMAIL
+
+# Upstash Redis (optional) — form rate limits shared across serverless instances
+UPSTASH_REDIS_REST_URL=https://<db>.upstash.io
+UPSTASH_REDIS_REST_TOKEN=...
 
 # Public site URL (used in sitemap, emails, OG metadata)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -81,7 +85,7 @@ lib/
   env.ts             # zod-validated env access
   supabase-admin.ts  # service-role client (server-only)
   email.ts           # Resend helpers for booking emails
-  rate-limit.ts      # in-memory per-process rate limiter
+  rate-limit.ts      # rate limiter (Upstash if configured, else in-memory)
   constants.ts       # public brand info (contact email, socials, …)
 middleware.ts        # timing-safe Basic Auth for /admin/*
 ```
@@ -103,5 +107,9 @@ The `bookings` table has:
 - `class_type text check (class_type in ('private','group'))`
 - `preferred_date date`
 - `status text default 'pending' check (status in ('pending','confirmed','cancelled'))`
+- `preferred_time`, `secondary_date`, `secondary_time` — the two requested slots
+- `notes text` — private admin notes
+- `email_status`, `email_kind`, `email_error`, `email_at` — outcome of the last guest email, shown in the admin
+- `emailed_statuses text[]` — statuses the guest was already emailed about (prevents duplicate emails)
 
 RLS is enabled and **all anon access is revoked** (see `20260516…_lock_down_anon_inserts.sql`). All booking inserts, reads, and status updates go through Next.js Server Actions using the service-role key — there is no direct browser-to-Supabase path.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { sendContactMessage, type ContactResult } from "@/app/contact/actions";
@@ -39,6 +40,9 @@ function ContactFormInner({ onReset }: { onReset: () => void }) {
   );
 
   const errors = state.fieldErrors ?? {};
+  // Echoed back by the action: React resets the form after submitting, so
+  // these refill it when there was an error.
+  const values = state.values ?? {};
 
   if (state.success) {
     return (
@@ -89,6 +93,7 @@ function ContactFormInner({ onReset }: { onReset: () => void }) {
             <input
               id="name"
               name="name"
+              defaultValue={values.name}
               type="text"
               required
               autoComplete="name"
@@ -104,6 +109,7 @@ function ContactFormInner({ onReset }: { onReset: () => void }) {
             <input
               id="email"
               name="email"
+              defaultValue={values.email}
               type="email"
               required
               autoComplete="email"
@@ -120,6 +126,7 @@ function ContactFormInner({ onReset }: { onReset: () => void }) {
           <textarea
             id="message"
             name="message"
+            defaultValue={values.message}
             required
             rows={5}
             placeholder="How can I help you?"
@@ -146,6 +153,13 @@ function ContactFormInner({ onReset }: { onReset: () => void }) {
             "Send Message"
           )}
         </button>
+        <p className="text-center text-xs text-muted-foreground">
+          We only use your details to reply to you. See our{" "}
+          <Link href="/datenschutz" className="underline underline-offset-2 hover:text-foreground">
+            privacy policy
+          </Link>
+          .
+        </p>
       </fieldset>
     </form>
   );

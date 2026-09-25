@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Clock, Loader2, Mail, X } from "lucide-react";
-import { updateBookingStatus } from "./actions";
+import { updateBookingStatus, type EmailResult } from "./actions";
 import { cn } from "@/lib/utils";
 import type { BookingRow } from "@/lib/types";
 
@@ -46,14 +46,33 @@ const EMAIL_PROMPT: Partial<Record<BookingStatus, string>> = {
   cancelled: "Cancel and email the guest?",
 };
 
+function noticeFor(email: EmailResult, name: string) {
+  switch (email) {
+    case "sent":
+      return { tone: "ok" as const, text: `Saved · email sent to ${name}` };
+    case "failed":
+      return {
+        tone: "error" as const,
+        text: `Saved, but the email to ${name} failed. Use “Resend email” or message them directly.`,
+      };
+    case "skipped":
+      return { tone: "ok" as const, text: `Saved · ${name} was already emailed about this` };
+    default:
+      return { tone: "ok" as const, text: "Saved" };
+  }
+}
+
 export function StatusControl({
   id,
   name,
   current,
+  alreadyEmailed = [],
 }: {
   id: string;
   name: string;
   current: BookingStatus;
+  /** Statuses the guest was already emailed about; changing to these sends nothing. */
+  alreadyEmailed?: string[];
 }) {
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<BookingStatus>(current);
@@ -78,17 +97,14 @@ export function StatusControl({
         setNotice({ tone: "error", text: result.error });
         return;
       }
-      setNotice({
-        tone: "ok",
-        // The email goes out after the response, so don't claim it was delivered.
-        text: result.emailed ? `Saved · notifying ${name} by email` : "Saved",
-      });
+      setNotice(noticeFor(result.email, name));
     });
   }
 
   function choose(next: BookingStatus) {
     if (next === value || pending) return;
-    if (EMAIL_PROMPT[next]) {
+    // Only ask when this change will actually email the guest.
+    if (EMAIL_PROMPT[next] && !alreadyEmailed.includes(next)) {
       setNotice(null);
       setAsking(next);
     } else {
@@ -171,7 +187,7 @@ export function StatusControl({
         role="status"
         aria-live="polite"
         className={cn(
-          "min-h-4 text-xs font-medium",
+          "text-xs font-medium empty:hidden",
           notice?.tone === "error" ? "text-rose-700" : "text-emerald-700"
         )}
       >

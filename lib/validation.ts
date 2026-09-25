@@ -44,6 +44,24 @@ const dateField = (label: string) =>
 
 const timeField = z.enum(VALID_TIMES, { message: "Please pick a valid time." });
 
+/** International format required by wa.me links: "+" and 7–15 digits. */
+const E164 = /^\+[1-9]\d{6,14}$/;
+
+/**
+ * Brings a typed phone number into "+<country><number>" form so the admin's
+ * WhatsApp button works. Most guests are in Vienna, so a national number
+ * ("0660 …") is read as Austrian. Anything else without a country code is
+ * left as-is and rejected by the E.164 check, rather than guessing a country.
+ */
+export function normalizeWhatsApp(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("+")) return `+${digits}`;
+  if (digits.startsWith("00")) return `+${digits.slice(2)}`;
+  if (digits.startsWith("0")) return `+43${digits.slice(1)}`;
+  return digits;
+}
+
 export const BOOKING_FIELDS = [
   "user_name",
   "user_email",
@@ -72,7 +90,9 @@ export const BookingSchema = z
     whatsapp_number: z
       .string()
       .trim()
-      .regex(/^\+?[0-9()\-\s]{7,20}$/, "Please enter a valid WhatsApp number."),
+      .regex(/^\+?[0-9()\-\s]{7,20}$/, "Please enter a valid WhatsApp number.")
+      .transform(normalizeWhatsApp)
+      .pipe(z.string().regex(E164, "Please include your country code, e.g. +43 660 1234567.")),
     class_type: z.enum(["private", "group"], {
       message: "Please pick a class type.",
     }),
@@ -102,6 +122,23 @@ export const ContactSchema = z.object({
     .min(10, "Please write at least 10 characters.")
     .max(4000, "Message is too long."),
 });
+
+/**
+ * The raw submitted strings, echoed back on errors. React 19 resets a form
+ * after its action runs, so without these the guest would have to retype
+ * everything after a single validation error.
+ */
+export function submittedValues<K extends string>(
+  formData: FormData,
+  fields: readonly K[]
+): Partial<Record<K, string>> {
+  const out: Partial<Record<K, string>> = {};
+  for (const field of fields) {
+    const value = formData.get(field);
+    if (typeof value === "string") out[field] = value.slice(0, 4000);
+  }
+  return out;
+}
 
 /**
  * Reduces Zod issues to the first message per known field.

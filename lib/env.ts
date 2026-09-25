@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PUBLIC_CONTACT_EMAIL } from "@/lib/constants";
 
 // Empty string (e.g. a blank Vercel "sensitive" var) must not win over the
 // default — Zod only applies `.default()` when the value is `undefined`, so a
@@ -16,7 +17,7 @@ const serverSchema = z.object({
     z.string().min(1).default("Bachata Vienna <onboarding@resend.dev>")
   ),
   INSTRUCTOR_EMAIL: blankAsUndefined(
-    z.string().email().default("hello@bachatavienna.at")
+    z.string().email().default(PUBLIC_CONTACT_EMAIL)
   ),
   CONTACT_EMAIL: blankAsUndefined(z.string().email().optional()),
   // Reply-To on guest emails; falls back to PUBLIC_CONTACT_EMAIL.

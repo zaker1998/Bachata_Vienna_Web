@@ -5,8 +5,9 @@ import { headers } from "next/headers";
 //
 // IMPORTANT: this only protects against casual abuse from a single instance.
 // On serverless (Vercel) each container has its own Map, so determined
-// attackers can bypass it by spreading requests across cold starts. For
-// production strength swap this for Upstash Ratelimit / Vercel KV.
+// attackers can bypass it by spreading requests across cold starts. The form
+// actions use `createSharedRateLimiter` below, which is backed by Upstash when
+// configured and falls back to this.
 
 type Entry = { count: number; reset: number };
 
@@ -82,6 +83,59 @@ export function createRateLimiter(opts: RateLimitOptions): RateLimiter {
     consume,
     check: (key) => consume(key).allowed,
     reset: () => store.clear(),
+  };
+}
+
+export interface SharedRateLimiter {
+  consume: (key: string) => Promise<RateLimitResult>;
+}
+
+/**
+ * Rate limiter shared across all serverless instances via Upstash Redis
+ * (REST API, so no extra dependency), when UPSTASH_REDIS_REST_URL and
+ * UPSTASH_REDIS_REST_TOKEN are set. Otherwise — and if Upstash is unreachable —
+ * it falls back to the per-process limiter above, so forms never break
+ * because of the limiter.
+ */
+export function createSharedRateLimiter(opts: RateLimitOptions): SharedRateLimiter {
+  const local = createRateLimiter(opts);
+
+  return {
+    async consume(key) {
+      const url = process.env.UPSTASH_REDIS_REST_URL;
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+      if (!url || !token) return local.consume(key);
+
+      const redisKey = `ratelimit:${key}`;
+      try {
+        // Fixed window: INCR, start the window on the first hit, read its TTL.
+        const res = await fetch(`${url.replace(/\/$/, "")}/pipeline`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify([
+            ["INCR", redisKey],
+            ["PEXPIRE", redisKey, String(opts.windowMs), "NX"],
+            ["PTTL", redisKey],
+          ]),
+          cache: "no-store",
+          signal: AbortSignal.timeout(2000),
+        });
+        if (!res.ok) throw new Error(`Upstash responded ${res.status}`);
+
+        const [incr, , pttl] = (await res.json()) as { result?: number; error?: string }[];
+        const count = Number(incr?.result);
+        if (!Number.isFinite(count)) throw new Error(incr?.error ?? "Bad Upstash response");
+
+        if (count > opts.max) {
+          const ttl = Number(pttl?.result);
+          return { allowed: false, remaining: 0, retryAfterMs: ttl > 0 ? ttl : opts.windowMs };
+        }
+        return { allowed: true, remaining: opts.max - count, retryAfterMs: 0 };
+      } catch (err) {
+        console.error("Shared rate limiter unavailable, using in-memory fallback:", err);
+        return local.consume(key);
+      }
+    },
   };
 }
 

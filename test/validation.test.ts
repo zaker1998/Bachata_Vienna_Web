@@ -116,6 +116,26 @@ describe("BookingSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("normalizes WhatsApp numbers to international format", () => {
+    const parse = (whatsapp_number: string) =>
+      BookingSchema.safeParse({ ...validBooking(), whatsapp_number });
+    const value = (n: string) => {
+      const r = parse(n);
+      return r.success ? r.data.whatsapp_number : null;
+    };
+    expect(value("+43 660 123-4567")).toBe("+436601234567");
+    expect(value("0043 660 1234567")).toBe("+436601234567");
+    // National Austrian numbers get +43, since that's where guests are.
+    expect(value("0660 1234567")).toBe("+436601234567");
+    expect(value("+49 (151) 2345678")).toBe("+491512345678");
+  });
+
+  it("asks for a country code when one can't be inferred", () => {
+    expect(
+      errorFor(BookingSchema.safeParse({ ...validBooking(), whatsapp_number: "660 1234567" }), "whatsapp_number")
+    ).toMatch(/country code/);
+  });
+
   it("rejects an unusable WhatsApp number", () => {
     expect(
       errorFor(BookingSchema.safeParse({ ...validBooking(), whatsapp_number: "call me" }), "whatsapp_number")

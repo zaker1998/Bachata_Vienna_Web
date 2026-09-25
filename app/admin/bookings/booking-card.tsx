@@ -1,13 +1,18 @@
 import { Mail, MessageCircle, Phone, User, Users } from "lucide-react";
 import { StatusControl } from "./status-control";
+import { EmailStatus } from "./email-status";
+import { NotesEditor } from "./notes-editor";
 import { cn } from "@/lib/utils";
 import {
   formatDay,
+  formatPhone,
   formatTimestamp,
   telLink,
   timeAgo,
   whatsappLink,
+  whatsappMessage,
 } from "@/lib/format";
+import { normalizeWhatsApp } from "@/lib/validation";
 import type { BookingRow } from "@/lib/types";
 
 const statusAccent: Record<BookingRow["status"], string> = {
@@ -58,7 +63,10 @@ const actionClasses =
   "inline-flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium transition-colors hover:border-primary/40 hover:text-primary min-[480px]:flex-row min-[480px]:gap-2 min-[480px]:text-sm";
 
 export function BookingCard({ booking: b, today }: { booking: BookingRow; today: string }) {
-  const wa = whatsappLink(b.whatsapp_number);
+  // Normalizing here also fixes rows saved before numbers were normalized on
+  // submit ("0660 …"), so their WhatsApp button works too.
+  const phone = normalizeWhatsApp(b.whatsapp_number);
+  const wa = whatsappLink(phone, whatsappMessage(b));
   const TypeIcon = b.class_type === "private" ? User : Users;
 
   return (
@@ -96,7 +104,7 @@ export function BookingCard({ booking: b, today }: { booking: BookingRow; today:
         </p>
         <p>
           <span className="sr-only">WhatsApp: </span>
-          <span className="text-muted-foreground">{b.whatsapp_number}</span>
+          <span className="text-muted-foreground">{formatPhone(phone)}</span>
         </p>
       </div>
 
@@ -107,7 +115,8 @@ export function BookingCard({ booking: b, today }: { booking: BookingRow; today:
             target="_blank"
             rel="noopener noreferrer"
             className={actionClasses}
-            aria-label={`WhatsApp ${b.user_name}`}
+            aria-label={`WhatsApp ${b.user_name} with a pre-filled message`}
+            title="Opens WhatsApp with a message you can edit before sending"
           >
             <MessageCircle className="h-4 w-4 shrink-0" aria-hidden />
             <span>WhatsApp</span>
@@ -123,7 +132,7 @@ export function BookingCard({ booking: b, today }: { booking: BookingRow; today:
           </span>
         )}
         <a
-          href={telLink(b.whatsapp_number)}
+          href={telLink(phone)}
           className={actionClasses}
           aria-label={`Call ${b.user_name}`}
         >
@@ -140,8 +149,23 @@ export function BookingCard({ booking: b, today }: { booking: BookingRow; today:
         </a>
       </div>
 
-      <div className="border-t border-border pt-4">
-        <StatusControl id={b.id} name={b.user_name} current={b.status} />
+      <NotesEditor id={b.id} name={b.user_name} initial={b.notes ?? ""} />
+
+      <div className="space-y-3 border-t border-border pt-4">
+        <StatusControl
+          id={b.id}
+          name={b.user_name}
+          current={b.status}
+          alreadyEmailed={b.emailed_statuses ?? []}
+        />
+        <EmailStatus
+          id={b.id}
+          name={b.user_name}
+          status={b.email_status}
+          kind={b.email_kind}
+          error={b.email_error}
+          sentAgo={b.email_at ? timeAgo(b.email_at) : null}
+        />
       </div>
     </li>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownUp, Search, X } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, Download, Search, X } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { cn } from "@/lib/utils";
 import { todayInVienna } from "@/lib/validation";
@@ -53,7 +53,7 @@ function hrefFor(params: { status?: StatusFilter; q?: string; sort?: Sort }) {
 
 function matches(b: BookingRow, q: string) {
   const needle = q.toLowerCase();
-  return [b.user_name, b.user_email, b.whatsapp_number].some((f) =>
+  return [b.user_name, b.user_email, b.whatsapp_number, b.notes].some((f) =>
     f?.toLowerCase().includes(needle)
   );
 }
@@ -95,22 +95,45 @@ export default async function AdminBookingsPage({
     (b) => b.status === "confirmed" && b.preferred_date >= today
   ).length;
 
+  const failedEmails = allBookings.filter((b) => b.email_status === "failed").length;
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bookings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {pendingCount > 0 ? (
-            <>
-              <strong className="font-semibold text-foreground">
-                {pendingCount} waiting for a reply
-              </strong>{" "}
-              · {upcomingConfirmed} upcoming confirmed
-            </>
-          ) : (
-            <>All caught up · {upcomingConfirmed} upcoming confirmed</>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bookings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {pendingCount > 0 ? (
+              <>
+                <strong className="font-semibold text-foreground">
+                  {pendingCount} waiting for a reply
+                </strong>{" "}
+                · {upcomingConfirmed} upcoming confirmed
+              </>
+            ) : (
+              <>All caught up · {upcomingConfirmed} upcoming confirmed</>
+            )}
+          </p>
+          {failedEmails > 0 && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1 text-xs font-medium text-rose-800">
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+              {failedEmails} guest email{failedEmails === 1 ? "" : "s"} failed to send — see the
+              highlighted bookings
+            </p>
           )}
-        </p>
+        </div>
+        {allBookings.length > 0 && (
+          <a
+            href="/admin/bookings/export"
+            download
+            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-medium hover:border-foreground/30"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            <span>
+              Export<span className="hidden sm:inline"> CSV</span>
+            </span>
+          </a>
+        )}
       </header>
 
       <nav aria-label="Filter by status" className="mb-4">
@@ -151,7 +174,7 @@ export default async function AdminBookingsPage({
           {filter !== "all" && <input type="hidden" name="status" value={filter} />}
           {sort !== "new" && <input type="hidden" name="sort" value={sort} />}
           <label htmlFor="booking-search" className="sr-only">
-            Search bookings by name, email or phone
+            Search bookings by name, email, phone or notes
           </label>
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -162,7 +185,7 @@ export default async function AdminBookingsPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search name, email or phone"
+            placeholder="Search bookings"
             enterKeyHint="search"
             className="h-11 w-full rounded-lg border border-border bg-white pl-9 pr-10 text-base focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
           />

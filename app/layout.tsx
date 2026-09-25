@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s · Bachata Vienna",
   },
   description:
-    "Master Bachata in Vienna with expert-led group classes and private lessons. Watch our video library and book your next session.",
+    "Master Bachata in Vienna with expert-led group classes and private lessons. Practise with hand-picked video tutorials and book your next session.",
   keywords: [
     "Bachata",
     "Vienna",

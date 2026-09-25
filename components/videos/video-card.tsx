@@ -73,7 +73,7 @@ export function VideoCard({ video }: VideoCardProps) {
           rel="noopener noreferrer"
           className="mt-auto pt-2 text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
         >
-          Original video on YouTube ↗ (not my content)
+          Watch on YouTube ↗ · by the original creator
         </a>
       </div>
     </article>

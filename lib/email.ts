@@ -17,6 +17,9 @@ import {
 import { getServerEnv, type ServerEnv } from "@/lib/env";
 import { PUBLIC_CONTACT_EMAIL } from "@/lib/constants";
 
+/** Result of one send, so callers can record and surface failures. */
+export type EmailOutcome = { ok: true } | { ok: false; error: string };
+
 /**
  * Where guest replies should land.
  *
@@ -28,57 +31,64 @@ export function guestReplyTo(env: ServerEnv): string {
   return env.REPLY_TO_EMAIL ?? PUBLIC_CONTACT_EMAIL;
 }
 
-function logResendResult(
-  label: string,
-  result: PromiseSettledResult<{ error: unknown }>
-) {
-  if (result.status === "rejected") {
-    console.error(`Failed to send ${label}:`, result.reason);
-  } else if (result.value.error) {
-    console.error(`Failed to send ${label}:`, result.value.error);
+type SendArgs = Parameters<Resend["emails"]["send"]>[0];
+
+// Resend resolves with `{ data, error }` instead of throwing on API errors —
+// check both rejection and the error payload so failures aren't silent.
+async function send(label: string, args: SendArgs): Promise<EmailOutcome> {
+  const env = getServerEnv();
+  try {
+    const { error } = await new Resend(env.RESEND_API_KEY).emails.send(args);
+    if (!error) return { ok: true };
+    console.error(`Failed to send ${label}:`, error);
+    return { ok: false, error: error.message || "Email provider rejected the message." };
+  } catch (err) {
+    console.error(`Failed to send ${label}:`, err);
+    return { ok: false, error: err instanceof Error ? err.message : "Email send failed." };
   }
 }
 
-export async function sendBookingEmails(booking: BookingInsert) {
+/** "We received your request" email to the guest. */
+export function sendGuestReceivedEmail(booking: BookingInsert): Promise<EmailOutcome> {
   const env = getServerEnv();
-  const resend = new Resend(env.RESEND_API_KEY);
-  const from = env.RESEND_FROM_EMAIL;
-  const replyTo = guestReplyTo(env);
-
-  const [confirmation, notification] = await Promise.allSettled([
-    resend.emails.send({
-      from,
-      to: booking.user_email,
-      replyTo,
-      subject: "Your Bachata Vienna booking is received 🎉",
-      html: confirmationEmailHtml(booking),
-      text: confirmationEmailText(booking),
-    }),
-    resend.emails.send({
-      from,
-      to: env.INSTRUCTOR_EMAIL,
-      // Lets the instructor answer the guest straight from the notification.
-      replyTo: booking.user_email,
-      subject: `New booking: ${booking.user_name} — ${booking.class_type}`,
-      html: notificationEmailHtml(booking),
-      text: notificationEmailText(booking),
-    }),
-  ]);
-
-  // Resend resolves with `{ data, error }` instead of throwing on API errors —
-  // check both rejection and the error payload so failures aren't silent.
-  logResendResult("confirmation email", confirmation);
-  logResendResult("notification email", notification);
+  return send("confirmation email", {
+    from: env.RESEND_FROM_EMAIL,
+    to: booking.user_email,
+    replyTo: guestReplyTo(env),
+    subject: "Your Bachata Vienna booking is received 🎉",
+    html: confirmationEmailHtml(booking),
+    text: confirmationEmailText(booking),
+  });
 }
 
-export async function sendStatusUpdateEmail(
+/** New-booking alert to the instructor. */
+export function sendInstructorNotification(booking: BookingInsert): Promise<EmailOutcome> {
+  const env = getServerEnv();
+  return send("notification email", {
+    from: env.RESEND_FROM_EMAIL,
+    to: env.INSTRUCTOR_EMAIL,
+    // Lets the instructor answer the guest straight from the notification.
+    replyTo: booking.user_email,
+    subject: `New booking: ${booking.user_name} — ${booking.class_type}`,
+    html: notificationEmailHtml(booking),
+    text: notificationEmailText(booking),
+  });
+}
+
+export async function sendBookingEmails(booking: BookingInsert) {
+  const [guest, instructor] = await Promise.all([
+    sendGuestReceivedEmail(booking),
+    sendInstructorNotification(booking),
+  ]);
+  return { guest, instructor };
+}
+
+export function sendStatusUpdateEmail(
   booking: BookingRow,
   status: StatusEmailKind
-) {
+): Promise<EmailOutcome> {
   const env = getServerEnv();
-  const resend = new Resend(env.RESEND_API_KEY);
-
-  const result = await resend.emails.send({
+  return send(`status-${status} email`, {
     from: env.RESEND_FROM_EMAIL,
     to: booking.user_email,
     replyTo: guestReplyTo(env),
@@ -86,8 +96,4 @@ export async function sendStatusUpdateEmail(
     html: statusUpdateEmailHtml(booking, status),
     text: statusUpdateEmailText(booking, status),
   });
-
-  if (result.error) {
-    console.error(`Failed to send status-${status} email:`, result.error);
-  }
 }

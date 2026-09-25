@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createBooking, type BookingResult } from "@/app/book/actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Info, Loader2 } from "lucide-react";
 
-const initialState: BookingResult = { success: false, message: "" };
+// `attempt` changes on every submit; it keys the <form> so it remounts with
+// the echoed-back values (see `values` below).
+type BookingState = BookingResult & { attempt: number };
+const initialState: BookingState = { success: false, message: "", attempt: 0 };
 
 function SubmitButton({ pending }: { pending: boolean }) {
   return (
@@ -49,17 +53,19 @@ function TimeSelect({
   id,
   name,
   hasError,
+  defaultValue = "",
 }: {
   id: string;
   name: string;
   hasError: boolean;
+  defaultValue?: string;
 }) {
   return (
     <select
       id={id}
       name={name}
       required
-      defaultValue=""
+      defaultValue={defaultValue}
       aria-invalid={hasError}
       aria-describedby={hasError ? `${id}-error` : undefined}
       className={fieldClasses(hasError)}
@@ -86,11 +92,27 @@ export function BookingForm() {
 
 function BookingFormInner({ onReset }: { onReset: () => void }) {
   const [state, formAction, pending] = useActionState(
-    async (_prev: BookingResult, formData: FormData) => createBooking(formData),
+    async (prev: BookingState, formData: FormData): Promise<BookingState> => ({
+      ...(await createBooking(formData)),
+      attempt: prev.attempt + 1,
+    }),
     initialState
   );
 
   const errors = state.fieldErrors ?? {};
+  // Echoed back by the action: React resets the form after submitting, so
+  // these refill it when there was an error. The form is remounted (keyed by
+  // `attempt`) because a reset ignores React's `defaultValue` on <select>s.
+  const values = state.values ?? {};
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Move focus to the first invalid field so keyboard and screen-reader users
+  // land where the problem is.
+  useEffect(() => {
+    if (!state.fieldErrors) return;
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [state]);
+  const [classType, setClassType] = useState(values.class_type ?? "");
 
   if (state.success) {
     return (
@@ -115,7 +137,13 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
   );
 
   return (
-    <form action={formAction} className="space-y-5" noValidate>
+    <form
+      key={state.attempt}
+      ref={formRef}
+      action={formAction}
+      className="space-y-5"
+      noValidate
+    >
       {state.message && (
         <div
           role="alert"
@@ -146,6 +174,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
           <input
             id="user_name"
             name="user_name"
+            defaultValue={values.user_name}
             type="text"
             required
             autoComplete="name"
@@ -164,6 +193,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
           <input
             id="user_email"
             name="user_email"
+            defaultValue={values.user_email}
             type="email"
             required
             autoComplete="email"
@@ -182,14 +212,18 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
           <input
             id="whatsapp_number"
             name="whatsapp_number"
+            defaultValue={values.whatsapp_number}
             type="tel"
             required
             autoComplete="tel"
             placeholder="+43 660 123 4567"
             aria-invalid={!!errors.whatsapp_number}
-            aria-describedby={errors.whatsapp_number ? "whatsapp_number-error" : undefined}
+            aria-describedby={cn("whatsapp_number-hint", errors.whatsapp_number && "whatsapp_number-error")}
             className={fieldClasses(!!errors.whatsapp_number)}
           />
+          <p id="whatsapp_number-hint" className="text-xs text-muted-foreground">
+            With country code, e.g. +43 — Austrian numbers starting with 0 work too.
+          </p>
           <FieldError id="whatsapp_number-error" message={errors.whatsapp_number} />
         </div>
 
@@ -201,7 +235,8 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
             id="class_type"
             name="class_type"
             required
-            defaultValue=""
+            value={classType}
+            onChange={(e) => setClassType(e.target.value)}
             aria-invalid={!!errors.class_type}
             aria-describedby={errors.class_type ? "class_type-error" : undefined}
             className={fieldClasses(!!errors.class_type)}
@@ -213,6 +248,13 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
             <option value="private">Private Lesson</option>
           </select>
           <FieldError id="class_type-error" message={errors.class_type} />
+          {classType === "group" && (
+            <p className="flex gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-secondary-foreground">
+              <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+              The group schedule isn&apos;t fixed yet — pick the days and times that suit you
+              and we&apos;ll let you know as soon as a group starts.
+            </p>
+          )}
         </div>
 
         {/* Primary slot */}
@@ -228,6 +270,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
               <input
                 id="preferred_date"
                 name="preferred_date"
+                defaultValue={values.preferred_date}
                 type="date"
                 required
                 min={todayIso}
@@ -245,6 +288,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
                 id="preferred_time"
                 name="preferred_time"
                 hasError={!!errors.preferred_time}
+                defaultValue={values.preferred_time}
               />
               <FieldError id="preferred_time-error" message={errors.preferred_time} />
             </div>
@@ -267,6 +311,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
               <input
                 id="secondary_date"
                 name="secondary_date"
+                defaultValue={values.secondary_date}
                 type="date"
                 required
                 min={todayIso}
@@ -284,6 +329,7 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
                 id="secondary_time"
                 name="secondary_time"
                 hasError={!!errors.secondary_time}
+                defaultValue={values.secondary_time}
               />
               <FieldError id="secondary_time-error" message={errors.secondary_time} />
             </div>
@@ -291,6 +337,13 @@ function BookingFormInner({ onReset }: { onReset: () => void }) {
         </div>
 
         <SubmitButton pending={pending} />
+        <p className="text-center text-xs text-muted-foreground">
+          We only use your details to arrange your class. See our{" "}
+          <Link href="/datenschutz" className="underline underline-offset-2 hover:text-foreground">
+            privacy policy
+          </Link>
+          .
+        </p>
       </fieldset>
     </form>
   );

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getServerEnv, resetServerEnvCache } from "@/lib/env";
+import { PUBLIC_CONTACT_EMAIL } from "@/lib/constants";
 
 const REQUIRED = {
   NEXT_PUBLIC_SUPABASE_URL: "https://proj.supabase.co",
@@ -48,7 +49,7 @@ describe("getServerEnv", () => {
       process.env.INSTRUCTOR_EMAIL = "";
       process.env.NEXT_PUBLIC_SITE_URL = "";
       const env = getServerEnv();
-      expect(env.INSTRUCTOR_EMAIL).toBe("hello@bachatavienna.at");
+      expect(env.INSTRUCTOR_EMAIL).toBe(PUBLIC_CONTACT_EMAIL);
       expect(env.NEXT_PUBLIC_SITE_URL).toBe("http://localhost:3000");
     });
 

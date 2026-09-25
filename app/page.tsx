@@ -39,7 +39,7 @@ export default function Home() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden">
+      <section className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden">
         <HeroVideo videoId={VIDEO_ID} startSec={START_SEC} endSec={END_SEC} />
 
         <div className="pointer-events-none absolute inset-0 bg-black/55" />
@@ -62,7 +62,7 @@ export default function Home() {
             className="mx-auto mt-6 max-w-xl text-lg text-white/80"
           >
             From first steps to advanced combinations — join our group classes,
-            book a private session, or learn at your own pace with video library.
+            book a private session, or practise at your own pace with hand-picked video tutorials.
           </FadeUp>
 
           <FadeUp
@@ -210,7 +210,7 @@ export default function Home() {
               and a very strong urge to come back next week.
             </p>
             <p className="text-xl font-semibold text-foreground">
-              Try it. We 100% guarantee you will not regret it.
+              Try it. We&apos;re pretty sure you&apos;ll be back for more.
             </p>
           </FadeUp>
 

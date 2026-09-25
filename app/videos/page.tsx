@@ -4,11 +4,11 @@ import { VideoLibrary } from "@/components/videos/video-library";
 
 export const metadata: Metadata = {
   title: "Video Library",
-  description: "Browse our Bachata class recordings across all levels.",
+  description: "Hand-picked Bachata tutorials from YouTube, sorted by level.",
   alternates: { canonical: "/videos" },
   openGraph: {
     title: "Video Library — Bachata Vienna",
-    description: "Browse our Bachata class recordings across all levels.",
+    description: "Hand-picked Bachata tutorials from YouTube, sorted by level.",
     url: "/videos",
     type: "website",
   },
@@ -22,7 +22,7 @@ export default function VideosPage() {
           Video Library
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Learn at your own pace — filter by level and dive in.
+          Hand-picked Bachata tutorials from YouTube, sorted by level — learn at your own pace between classes.
         </p>
       </div>
 
