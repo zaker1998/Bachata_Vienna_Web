@@ -36,7 +36,7 @@ const copy: Record<
 > = {
   confirmed: {
     subject: "Your Bachata Vienna booking is confirmed 🎉",
-    headline: "You&apos;re confirmed! 🎉",
+    headline: "You&#39;re confirmed! 🎉",
     body: "your class is confirmed. We'll be in touch on WhatsApp to finalize the exact time.",
     badgeBg: "#d1fae5",
     badgeFg: "#065f46",

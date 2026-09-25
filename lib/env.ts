@@ -19,6 +19,8 @@ const serverSchema = z.object({
     z.string().email().default("hello@bachatavienna.at")
   ),
   CONTACT_EMAIL: blankAsUndefined(z.string().email().optional()),
+  // Reply-To on guest emails; falls back to PUBLIC_CONTACT_EMAIL.
+  REPLY_TO_EMAIL: blankAsUndefined(z.string().email().optional()),
   NEXT_PUBLIC_SITE_URL: blankAsUndefined(
     z.string().url().default("http://localhost:3000")
   ),

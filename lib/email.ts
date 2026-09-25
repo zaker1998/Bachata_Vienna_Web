@@ -14,7 +14,19 @@ import {
   statusUpdateSubject,
   type StatusEmailKind,
 } from "@/lib/emails/status-update";
-import { getServerEnv } from "@/lib/env";
+import { getServerEnv, type ServerEnv } from "@/lib/env";
+import { PUBLIC_CONTACT_EMAIL } from "@/lib/constants";
+
+/**
+ * Where guest replies should land.
+ *
+ * Transactional mail is sent from a no-reply sender, so without an explicit
+ * Reply-To a guest hitting "Reply" (which the templates invite them to do)
+ * would write to a mailbox nobody reads.
+ */
+export function guestReplyTo(env: ServerEnv): string {
+  return env.REPLY_TO_EMAIL ?? PUBLIC_CONTACT_EMAIL;
+}
 
 function logResendResult(
   label: string,
@@ -31,11 +43,13 @@ export async function sendBookingEmails(booking: BookingInsert) {
   const env = getServerEnv();
   const resend = new Resend(env.RESEND_API_KEY);
   const from = env.RESEND_FROM_EMAIL;
+  const replyTo = guestReplyTo(env);
 
   const [confirmation, notification] = await Promise.allSettled([
     resend.emails.send({
       from,
       to: booking.user_email,
+      replyTo,
       subject: "Your Bachata Vienna booking is received 🎉",
       html: confirmationEmailHtml(booking),
       text: confirmationEmailText(booking),
@@ -43,6 +57,8 @@ export async function sendBookingEmails(booking: BookingInsert) {
     resend.emails.send({
       from,
       to: env.INSTRUCTOR_EMAIL,
+      // Lets the instructor answer the guest straight from the notification.
+      replyTo: booking.user_email,
       subject: `New booking: ${booking.user_name} — ${booking.class_type}`,
       html: notificationEmailHtml(booking),
       text: notificationEmailText(booking),
@@ -65,6 +81,7 @@ export async function sendStatusUpdateEmail(
   const result = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to: booking.user_email,
+    replyTo: guestReplyTo(env),
     subject: statusUpdateSubject(status),
     html: statusUpdateEmailHtml(booking, status),
     text: statusUpdateEmailText(booking, status),
