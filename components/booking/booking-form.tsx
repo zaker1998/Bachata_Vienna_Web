@@ -25,7 +25,7 @@ function SubmitButton({ pending }: { pending: boolean }) {
 
 const fieldClasses = (hasError: boolean) =>
   cn(
-    "w-full h-10 rounded-lg border bg-white px-4 text-sm",
+    "w-full h-11 rounded-lg border bg-white px-4 text-base sm:text-sm",
     "placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2",
     hasError
       ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200"

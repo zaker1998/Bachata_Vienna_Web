@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ExternalLink, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -34,6 +34,8 @@ export function Navbar() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mobileOpen]);
+
+  if (pathname.startsWith("/admin")) return <AdminHeader />;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
@@ -66,7 +68,7 @@ export function Navbar() {
         </ul>
 
         <button
-          className="text-foreground md:hidden"
+          className="-mr-2 flex h-11 w-11 items-center justify-center rounded-md text-foreground md:hidden"
           onClick={() => setMobileOpen((o) => !o)}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}
@@ -106,6 +108,31 @@ export function Navbar() {
           })}
         </ul>
       </div>
+    </header>
+  );
+}
+
+function AdminHeader() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md">
+      <nav
+        aria-label="Admin"
+        className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4"
+      >
+        <Link href="/admin/bookings" className="flex items-center gap-2">
+          <span className="text-lg font-bold tracking-tight text-primary">Bachata Vienna</span>
+          <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-background">
+            Admin
+          </span>
+        </Link>
+        <Link
+          href="/"
+          className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <ExternalLink className="h-4 w-4" aria-hidden />
+          View site
+        </Link>
+      </nav>
     </header>
   );
 }

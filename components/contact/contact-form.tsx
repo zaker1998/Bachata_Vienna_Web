@@ -9,7 +9,7 @@ const initialState: ContactResult = { success: false, message: "" };
 
 const fieldClasses = (hasError: boolean) =>
   cn(
-    "w-full rounded-lg border bg-white px-4 py-2.5 text-sm",
+    "w-full rounded-lg border bg-white px-4 py-2.5 text-base sm:text-sm",
     "placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2",
     hasError
       ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200"
